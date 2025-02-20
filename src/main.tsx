@@ -5,6 +5,9 @@ import Login from './pages/login';
 import Dashboard from './pages/DashBoard';
 import Register from './pages/Register';
 import './styles/theme.ts';
+import registerServiceWorker from './utils/registerServiceWorker.ts';
+
+registerServiceWorker();
 
 ReactDom.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
