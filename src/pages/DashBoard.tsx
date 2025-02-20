@@ -37,14 +37,23 @@ const Dashboard: React.FC = () => {
         setSnackbarOpen(true);
     };
 
+    const getBaseUrl = () => {
+        // Si estamos en localhost, utilizamos localhost, si no, usamos la IP local
+        return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:5000'
+            : 'http://192.168.100.12:5000'; // IP local para redes
+    };
+
     const fetchTasks = async () => {
         const offlineTasks = await getTasks();
         if (isOnline) {
             try {
                 const token = localStorage.getItem('token');
-                const response = await axios.get('http://localhost:5000/api/tasks', {
+                const baseUrl = getBaseUrl(); // Llamamos a la función que determina la URL correcta
+                const response = await axios.get(`${baseUrl}/api/tasks`, {
                     headers: { Authorization: token },
                 });
+                
                 setTasks([...response.data, ...offlineTasks]);
             } catch (error) {
                 showSnackbar('Error al obtener las tareas.');
@@ -66,7 +75,8 @@ const Dashboard: React.FC = () => {
         if (isOnline) {
             try {
                 const token = localStorage.getItem('token');
-                const response = await axios.post('http://localhost:5000/api/tasks', newTask, {
+                const baseUrl = getBaseUrl(); // Usamos la URL correcta
+                const response = await axios.post(`${baseUrl}/api/tasks`, newTask, {
                     headers: { Authorization: token },
                 });
                 setTasks(prev => [...prev, response.data]);
@@ -87,13 +97,14 @@ const Dashboard: React.FC = () => {
     const syncTasksWithServer = async () => {
         const offlineTasks = await getTasks();
         const token = localStorage.getItem('token');
+        const baseUrl = getBaseUrl(); // Usamos la URL correcta
 
         // Sincronizar eliminaciones
         const deletedTasks = offlineTasks.filter(task => task.isDeleted);
 
         for (const task of deletedTasks) {
             try {
-                await axios.delete(`http://localhost:5000/api/tasks/${task.id}`, {
+                await axios.delete(`${baseUrl}/api/tasks/${task.id}`, {
                     headers: { Authorization: token },
                 });
                 await deleteTask(task.id); // Eliminar de la base de datos local
@@ -108,13 +119,13 @@ const Dashboard: React.FC = () => {
                 try {
                     if (String(task.id).length > 10) {
                         // Nueva tarea creada offline
-                        const response = await axios.post('http://localhost:5000/api/tasks', task, {
+                        const response = await axios.post(`${baseUrl}/api/tasks`, task, {
                             headers: { Authorization: token },
                         });
                         setTasks(prev => prev.filter(t => t.id !== task.id).concat(response.data));
                     } else {
                         // Tarea editada offline
-                        await axios.put(`http://localhost:5000/api/tasks/${task.id}`, task, {
+                        await axios.put(`${baseUrl}/api/tasks/${task.id}`, task, {
                             headers: { Authorization: token },
                         });
                     }
@@ -139,7 +150,8 @@ const Dashboard: React.FC = () => {
         if (isOnline) {
             try {
                 const token = localStorage.getItem('token');
-                await axios.put(`http://localhost:5000/api/tasks/${editTask.id}`, editTask, {
+                const baseUrl = getBaseUrl(); // Usamos la URL correcta
+                await axios.put(`${baseUrl}/api/tasks/${editTask.id}`, editTask, {
                     headers: { Authorization: token },
                 });
                 setTasks(prev => prev.map(task => task.id === editTask.id ? editTask : task)); // Actualiza la tarea en la lista
@@ -167,7 +179,8 @@ const Dashboard: React.FC = () => {
         if (isOnline) {
             try {
                 const token = localStorage.getItem('token');
-                await axios.delete(`http://localhost:5000/api/tasks/${taskToDelete.id}`, {
+                const baseUrl = getBaseUrl(); // Usamos la URL correcta
+                await axios.delete(`${baseUrl}/api/tasks/${taskToDelete.id}`, {
                     headers: { Authorization: token },
                 });
                 setTasks(prev => prev.filter(task => task.id !== taskToDelete.id));
@@ -235,19 +248,17 @@ const Dashboard: React.FC = () => {
             <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
                 <DialogTitle>¿Estás seguro de que deseas eliminar esta tarea?</DialogTitle>
                 <DialogActions>
-                    <Button onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
-                    <Button variant="contained" color="error" onClick={confirmDeleteTask}>
-                        Eliminar
-                    </Button>
+                    <Button onClick={() => setDeleteDialogOpen(false)} color="primary">Cancelar</Button>
+                    <Button onClick={confirmDeleteTask} color="primary">Eliminar</Button>
                 </DialogActions>
             </Dialog>
 
             <Dialog open={open} onClose={() => setOpen(false)}>
                 <DialogTitle>Editar Tarea</DialogTitle>
                 <DialogContent>
-                    <TextField fullWidth label="Título" value={editTask?.title || ''} onChange={(e) => setEditTask(prev => prev ? { ...prev, title: e.target.value } : null)} />
-                    <TextField fullWidth label="Descripción" value={editTask?.description || ''} onChange={(e) => setEditTask(prev => prev ? { ...prev, description: e.target.value } : null)} sx={{ mt: 2 }} />
-                    <Select fullWidth value={editTask?.status || 'Pendiente'} onChange={(e) => setEditTask(prev => prev ? { ...prev, status: e.target.value } : null)} sx={{ mt: 2 }}>
+                    <TextField label="Título" value={editTask?.title || ''} onChange={(e) => setEditTask(prev => prev ? { ...prev, title: e.target.value } : null)} fullWidth />
+                    <TextField label="Descripción" value={editTask?.description || ''} onChange={(e) => setEditTask(prev => prev ? { ...prev, description: e.target.value } : null)} fullWidth sx={{ mt: 2 }} />
+                    <Select value={editTask?.status || ''} onChange={(e) => setEditTask(prev => prev ? { ...prev, status: e.target.value } : null)} sx={{ mt: 2 }}>
                         <MenuItem value="Pendiente">Pendiente</MenuItem>
                         <MenuItem value="En Progreso">En Progreso</MenuItem>
                         <MenuItem value="Completada">Completada</MenuItem>
@@ -255,12 +266,16 @@ const Dashboard: React.FC = () => {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setOpen(false)}>Cancelar</Button>
-                    <Button variant="contained" onClick={handleUpdateTask}>Guardar Cambios</Button>
+                    <Button variant="contained" onClick={handleUpdateTask}>Actualizar</Button>
                 </DialogActions>
             </Dialog>
 
-            <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={() => setSnackbarOpen(false)}>
-                <MuiAlert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: '100%' }}>
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={3000}
+                onClose={() => setSnackbarOpen(false)}
+            >
+                <MuiAlert elevation={6} variant="filled" severity="info">
                     {snackbarMessage}
                 </MuiAlert>
             </Snackbar>

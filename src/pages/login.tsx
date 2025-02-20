@@ -21,8 +21,9 @@ const Login: React.FC = () => {
     event.preventDefault();
 
     try {
+      // Usa la dirección IP de la máquina donde corre el backend
       const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
+        "http://192.168.100.12:5000/api/auth/login",  // Cambia localhost por la IP de la red local
         {
           email,
           password,
